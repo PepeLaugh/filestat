@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <stdbool.h>
 
 char* date(time_t time){
     char *ctime_no_nl;
@@ -16,6 +17,7 @@ char* date(time_t time){
     return ctime_no_nl;
 }
 // Cerca se il file è stato richiesto almeno una volta
+/*
 void search (char* pathname) {
     FILE* fr = fopen("home/navi/workspace/Ulamogv2/filestat.db","r+");
     char temp[512];
@@ -34,13 +36,9 @@ void search (char* pathname) {
     free(buffer);
     fclose(fr);
 }
-// Metodo per la scrittura del file di output
-void writeOut (char *pathname) {
-    struct stat fileStat;
-    stat(pathname,&fileStat);
-    FILE* fout = fopen("/home/navi/workspace/Ulamogv2/filestat.db","a+");
-    // Scrittura dei parametri richiesti
-    fprintf(fout,"# <%s>\n",pathname);
+*/
+void printStat (char *pathname, struct stat fileStat) {
+    FILE* fout = fopen(pathname,"a+");
     fprintf(fout,"<%s> ",date(time(NULL)));
     fprintf(fout,"<%d> ",fileStat.st_uid);
     fprintf(fout,"<%d> ",fileStat.st_gid);
@@ -61,12 +59,80 @@ void writeOut (char *pathname) {
     fprintf(fout,"###\n");
     fclose(fout);
 }
+// Metodo per la scrittura del file di output
+void writeOut (char *pathname, bool link) {
+    struct stat fileStat;
+    if (link) {
+        // Stats del link
+        lstat(pathname,&fileStat);
+    } else {
+        // Stats del file a cui fa riferimento il link
+        stat(pathname,&fileStat);
+    }
+    FILE* fout = fopen("/home/navi/workspace/Ulamogv2/filestat.db","a+");
+    // Scrittura dei parametri richiesti
+    char temp[512];
+    FILE* copy = fopen("/home/navi/workspace/Ulamogv2/copy.db","a+");
+	int find_result = 0;
+    char *buffer = malloc(strlen(pathname)+sizeof("<"));
+    strcpy(buffer,pathname);
+    strcat(buffer, ">");
+	while(fgets(temp, 512, fout) != NULL) {
+        fputs(temp,copy);
+		if((strstr(temp, buffer)) != NULL) {
+            find_result = 1;
+            while(fgets(temp, 512, fout) != NULL){
+                if (strstr(temp,"###") != NULL) {
+                    fprintf(copy,"<%s> ",date(time(NULL)));
+                    fprintf(copy,"<%d> ",fileStat.st_uid);
+                    fprintf(copy,"<%d> ",fileStat.st_gid);
+                    fprintf(copy,"<%ld> ",fileStat.st_size);
+                    fprintf(copy,(S_ISDIR(fileStat.st_mode)) ? "<d" : "<-");
+                    fprintf(copy,(fileStat.st_mode & S_IRUSR) ? "r" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IWUSR) ? "w" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IXUSR) ? "x" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IRGRP) ? "r" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IWGRP) ? "w" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IXGRP) ? "x" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IROTH) ? "r" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IWOTH) ? "w" : "-");
+                    fprintf(copy,(fileStat.st_mode & S_IXOTH) ? "x>" : "->");
+                    fprintf(copy," <%s> ",date(fileStat.st_atime));
+                    fprintf(copy," <%s> ",date(fileStat.st_mtime));
+                    fprintf(copy," <%s> \n",date(fileStat.st_ctime));
+                    fprintf(copy,"###\n");
+                    while(fgets(temp, 512, fout) != NULL) {
+                        fputs(temp,copy);
+                    }
+                    break;
+                }
+                fputs(temp,copy);
+            }
+		}
+        if (find_result == 1) {
+            break;
+        }
+	}
+    free(buffer);
+    if (find_result == 0){
+        fprintf(fout,"# <%s>\n",pathname);
+        fclose(fout);;
+        freopen("/home/navi/workspace/Ulamogv2/copy.db","w",copy);
+        fclose(copy);
+        printStat("/home/navi/workspace/Ulamogv2/filestat.db",fileStat);
+    } else {
+        fclose(fout);
+        fclose(copy);
+        remove("/home/navi/workspace/Ulamogv2/filestat.db");
+        rename("/home/navi/workspace/Ulamogv2/copy.db","/home/navi/workspace/Ulamogv2/filestat.db");
+    }
+}
 
 // Metodo che cerca ricorsivamente i file all'interno delle cartelle
-int recWrite (char *pathname) {
+int recWrite (char *pathname, bool link) {
     DIR *dir;
     struct dirent *ent;
-    writeOut(pathname);
+    writeOut(pathname,link);
     // Apre e scansiona la cartella
     if ((dir = opendir (pathname)) != NULL) {
         /* print all the files and directories within directory */
@@ -82,11 +148,11 @@ int recWrite (char *pathname) {
             strcat(buffer,ent->d_name);
             // Se trova una cartella, chiama il metodo ricorsivamente
             if (ent->d_type == 4) {
-                recWrite(buffer);
+                recWrite(buffer,link);
                 free(buffer);     
             } else {
                 // Altrimenti scrive nel file di output e continua con la scansione
-                writeOut(buffer);
+                writeOut(buffer,link);
                 free(buffer);
             }
         }
@@ -98,5 +164,5 @@ int recWrite (char *pathname) {
 }
 
 int main (void){
-    search("/home/navi/Documents/test");
+    recWrite("/home/navi/Documents/test",false);
 }
