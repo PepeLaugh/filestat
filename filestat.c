@@ -7,6 +7,12 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include "filestat.h"
+
+long start;
+long end;
+int nfile;
+long maxSize;
 
 char* date(time_t time){
     char *ctime_no_nl;
@@ -16,6 +22,7 @@ char* date(time_t time){
     ctime_no_nl = strtok(ctime(&currentTime), "\n");
     return ctime_no_nl;
 }
+
 // Metodo per la scrittura su file con l'opzione verbose
 void verbosePrint (char *pathname, struct stat fileStat) {
     FILE* fout = fopen(pathname,"a+");
@@ -179,7 +186,7 @@ int recWrite (char *pathname, bool link, bool verb) {
             // Se trova una cartella, chiama il metodo ricorsivamente
             if (ent->d_type == 4) {
                 recWrite(buffer,link,verb);
-                free(buffer);     
+                free(buffer);
             } else {
                 // Altrimenti scrive nel file di output e continua con la scansione
                 writeOut(buffer,link,verb);
