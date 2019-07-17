@@ -16,7 +16,7 @@ char* date(time_t time){
     ctime_no_nl = strtok(ctime(&currentTime), "\n");
     return ctime_no_nl;
 }
-
+// Metodo per la scrittura su file con l'opzione verbose
 void verbosePrint (char *pathname, struct stat fileStat) {
     FILE* fout = fopen(pathname,"a+");
     fprintf(fout,"<%s> ",date(time(NULL)));
@@ -59,6 +59,7 @@ void verbosePrint (char *pathname, struct stat fileStat) {
     fclose(fout);
 }
 
+// Metodo per la scrittura su file
 void printStat (char *pathname, struct stat fileStat) {
     FILE* fout = fopen(pathname,"a+");
     fprintf(fout,"<%s> ",date(time(NULL)));
@@ -111,26 +112,15 @@ void writeOut (char *pathname, bool link, bool verb) {
             while(fgets(temp, 512, fout) != NULL){
                 // Scansiono ogni riga finchè non trovo la fine del file desiderato
                 if (strstr(temp,"###") != NULL) {
+                    fclose(copy);
                     // Aggiungo una nuova entry
-                    fprintf(copy,"<%s> ",date(time(NULL)));
-                    fprintf(copy,"<%d> ",fileStat.st_uid);
-                    fprintf(copy,"<%d> ",fileStat.st_gid);
-                    fprintf(copy,"<%ld> ",fileStat.st_size);
-                    fprintf(copy,(S_ISDIR(fileStat.st_mode)) ? "<d" : "<-");
-                    fprintf(copy,(fileStat.st_mode & S_IRUSR) ? "r" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IWUSR) ? "w" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IXUSR) ? "x" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IRGRP) ? "r" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IWGRP) ? "w" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IXGRP) ? "x" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IROTH) ? "r" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IWOTH) ? "w" : "-");
-                    fprintf(copy,(fileStat.st_mode & S_IXOTH) ? "x> " : "-> ");
-                    fprintf(copy,"<%s> ",date(fileStat.st_atime));
-                    fprintf(copy,"<%s> ",date(fileStat.st_mtime));
-                    fprintf(copy,"<%s> ",date(fileStat.st_ctime));
-                    fprintf(copy,"<%ld> \n",fileStat.st_nlink);
-                    fprintf(copy,"###\n");
+                    if (verb){
+                        printf("%s\n",pathname);
+                        verbosePrint("copy.db",fileStat);
+                    } else {
+                        printStat("copy.db",fileStat);
+                    }
+                    fopen("copy.db","a+");
                     // Copio il resto del file
                     while(fgets(temp, 512, fout) != NULL) {
                         fputs(temp,copy);
@@ -151,7 +141,7 @@ void writeOut (char *pathname, bool link, bool verb) {
         // Se non è stato trovato un match, aggiungo il pathname del nuovo file e scansiono
         fprintf(fout,"# <%s>\n",pathname);
         if (verb) {
-            printf("%s \n",pathname);
+            printf("%s\n",pathname);
         }
         fclose(fout);
         remove("copy.db");
