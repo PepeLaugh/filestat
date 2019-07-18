@@ -9,11 +9,6 @@
 #include <stdbool.h>
 #include "filestat.h"
 
-long start;
-long end;
-int nfile;
-long maxSize;
-
 char* date(time_t time){
     char *ctime_no_nl;
     // Numero di secondi in base dell'argomento passato
@@ -139,7 +134,7 @@ int findMatch (char* search, char *file, struct stat fileStat, bool verb) {
     return find_result;
 }
 // Metodo per la scrittura del file di output
-void writeOut (char *pathname, bool link, bool verb) {
+void writeOut (char *pathname, char *dest, bool link, bool verb) {
     struct stat fileStat;
     if (link) {
         // Stats del link
@@ -148,10 +143,10 @@ void writeOut (char *pathname, bool link, bool verb) {
         // Stats del file a cui fa riferimento il link
         stat(pathname,&fileStat);
     }
-    int match = findMatch(pathname,"filestat.db",fileStat,verb);
+    int match = findMatch(pathname,dest,fileStat,verb);
     if (match == 0){
         // Se non è stato trovato un match, aggiungo il pathname del nuovo file e scansiono
-        FILE* fout = fopen("filestat.db","a+");
+        FILE* fout = fopen(dest,"a+");
         fprintf(fout,"# <%s>\n",pathname);
         if (verb) {
             printf("%s\n",pathname);
@@ -159,22 +154,22 @@ void writeOut (char *pathname, bool link, bool verb) {
         fclose(fout);
         remove("copy.db");
         if (verb) {
-            verbosePrint("filestat.db",fileStat);
+            verbosePrint(dest,fileStat);
         } else {
-            printStat("filestat.db",fileStat);
+            printStat(dest,fileStat);
         }
     } else {
         // Se è stato trovato un match, scambio la copia aggiornata con il vecchio file
-        remove("filestat.db");
-        rename("copy.db","filestat.db");
+        remove(dest);
+        rename("copy.db",dest);
     }
 }
 
 // Metodo che cerca ricorsivamente i file all'interno delle cartelle
-int recWrite (char *pathname, bool link, bool verb) {
+int recWrite (char *pathname, char *dest, bool link, bool verb) {
     DIR *dir;
     struct dirent *ent;
-    writeOut(pathname,link,verb);
+    writeOut(pathname,dest,link,verb);
     // Apre e scansiona la cartella
     if ((dir = opendir (pathname)) != NULL) {
         while ((ent = readdir (dir)) != NULL) {
@@ -189,11 +184,11 @@ int recWrite (char *pathname, bool link, bool verb) {
             strcat(buffer,ent->d_name);
             // Se trova una cartella, chiama il metodo ricorsivamente
             if (ent->d_type == 4) {
-                recWrite(buffer,link,verb);
+                recWrite(buffer,dest,link,verb);
                 free(buffer);
             } else {
                 // Altrimenti scrive nel file di output e continua con la scansione
-                writeOut(buffer,link,verb);
+                writeOut(buffer,dest,link,verb);
                 free(buffer);
             }
         }
@@ -211,8 +206,4 @@ void noscan(char *pathname){
         printf("%s", temp);
     }
     fclose(f);
-}
-
-int main (){
-    recWrite("/home/navi/Documents/test",true,true);
 }
