@@ -9,3 +9,5 @@ void writeOut (char *pathname, bool link, bool verb);
 int recWrite (char *pathname, bool link, bool verb);
 
 void noscan(char *pathname);
+
+void findaMatch(char* search, char *file, struct stat fileStat, bool verb);

@@ -90,25 +90,17 @@ void printStat (char *pathname, struct stat fileStat) {
     fprintf(fout,"###\n");
     fclose(fout);
 }
-// Metodo per la scrittura del file di output
-void writeOut (char *pathname, bool link, bool verb) {
-    struct stat fileStat;
-    if (link) {
-        // Stats del link
-        lstat(pathname,&fileStat);
-    } else {
-        // Stats del file a cui fa riferimento il link
-        stat(pathname,&fileStat);
-    }
-    FILE* fout = fopen("filestat.db","a+");
+// Controlla se il file richiesto è già stato scansionato almeno una volta
+int findMatch (char* search, char *file, struct stat fileStat, bool verb) {
     char temp[512];
     // Creazione di una copia del file di output
     FILE* copy = fopen("copy.db","a+");
+    FILE* fout = fopen(file,"a+");
     // Flag per l'eventuale presenza del file richiesto
 	int find_result = 0;
     // Modifica del pathname per facilitare la scansione
-    char *buffer = malloc(strlen(pathname)+sizeof("<"));
-    strcpy(buffer,pathname);
+    char *buffer = malloc(strlen(search)+sizeof("<"));
+    strcpy(buffer,search);
     strcat(buffer, ">");
 	while(fgets(temp, 512, fout) != NULL) {
         // Ciclo il file di output copiando ogni riga
@@ -122,7 +114,7 @@ void writeOut (char *pathname, bool link, bool verb) {
                     fclose(copy);
                     // Aggiungo una nuova entry
                     if (verb){
-                        printf("%s\n",pathname);
+                        printf("%s\n",search);
                         verbosePrint("copy.db",fileStat);
                     } else {
                         printStat("copy.db",fileStat);
@@ -144,8 +136,22 @@ void writeOut (char *pathname, bool link, bool verb) {
 	}
     free(buffer);
     fclose(copy);
-    if (find_result == 0){
+    return find_result;
+}
+// Metodo per la scrittura del file di output
+void writeOut (char *pathname, bool link, bool verb) {
+    struct stat fileStat;
+    if (link) {
+        // Stats del link
+        lstat(pathname,&fileStat);
+    } else {
+        // Stats del file a cui fa riferimento il link
+        stat(pathname,&fileStat);
+    }
+    int match = findMatch(pathname,"filestat.db",fileStat,verb);
+    if (match == 0){
         // Se non è stato trovato un match, aggiungo il pathname del nuovo file e scansiono
+        FILE* fout = fopen("filestat.db","a+");
         fprintf(fout,"# <%s>\n",pathname);
         if (verb) {
             printf("%s\n",pathname);
@@ -157,10 +163,8 @@ void writeOut (char *pathname, bool link, bool verb) {
         } else {
             printStat("filestat.db",fileStat);
         }
-
     } else {
         // Se è stato trovato un match, scambio la copia aggiornata con il vecchio file
-        fclose(fout);
         remove("filestat.db");
         rename("copy.db","filestat.db");
     }
@@ -207,4 +211,8 @@ void noscan(char *pathname){
         printf("%s", temp);
     }
     fclose(f);
+}
+
+int main (){
+    recWrite("/home/navi/Documents/test",true,true);
 }
