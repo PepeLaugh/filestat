@@ -207,3 +207,30 @@ void noscan(char *pathname){
     }
     fclose(f);
 }
+
+void history(char *pathname, char *dest) {
+    FILE *fout = fopen(dest,"r");
+    char temp[512];
+    int found = 0;
+    // Modifica del pathname per facilitare la scansione
+    char *buffer = malloc(strlen(pathname)+sizeof(">"));
+    strcpy(buffer,pathname);
+    strcat(buffer, ">");
+	while(fgets(temp, 512, fout) != NULL) {
+        if((strstr(temp, buffer)) != NULL) {
+            found = 1;
+            while(fgets(temp, 512, fout) != NULL) {
+                if((strstr(temp, "###")) != NULL) {
+                    break;
+                }
+                printf("%s",temp);
+            }
+        }
+        if (found == 1) {
+            break;
+        }
+    }
+    if (found == 0) {
+        printf("No match found");
+    }
+}

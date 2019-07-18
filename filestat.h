@@ -11,3 +11,5 @@ int recWrite (char *pathname, char *dest, bool link, bool verb);
 void noscan(char *pathname);
 
 void findaMatch(char* search, char *file, struct stat fileStat, bool verb);
+
+void history(char *pathname, char *dest);
