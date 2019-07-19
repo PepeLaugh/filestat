@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include "filestat.h"
+#include "data.h"
 
 char* date(time_t time){
     char *ctime_no_nl;
@@ -18,9 +19,8 @@ char* date(time_t time){
     return ctime_no_nl;
 }
 
-// Metodo per la scrittura su file con l'opzione verbose
 void verbosePrint (char *pathname, struct stat fileStat) {
-    FILE* fout = fopen(pathname,"a+");
+    FILE* fout = fopen(pathname,"a");
     fprintf(fout,"<%s> ",date(time(NULL)));
     printf("%s ",date(time(NULL)));
     fprintf(fout,"<%d> ",fileStat.st_uid);
@@ -61,9 +61,8 @@ void verbosePrint (char *pathname, struct stat fileStat) {
     fclose(fout);
 }
 
-// Metodo per la scrittura su file
 void printStat (char *pathname, struct stat fileStat) {
-    FILE* fout = fopen(pathname,"a+");
+    FILE* fout = fopen(pathname,"a");
     fprintf(fout,"<%s> ",date(time(NULL)));
     fprintf(fout,"<%d> ",fileStat.st_uid);
     fprintf(fout,"<%d> ",fileStat.st_gid);
@@ -85,11 +84,11 @@ void printStat (char *pathname, struct stat fileStat) {
     fprintf(fout,"###\n");
     fclose(fout);
 }
-// Controlla se il file richiesto è già stato scansionato almeno una volta
+
 int findMatch (char* search, char *file, struct stat fileStat, bool verb) {
     char temp[512];
     // Creazione di una copia del file di output
-    FILE* copy = fopen("copy.db","a+");
+    FILE* copy = fopen("copy.db","a");
     FILE* fout = fopen(file,"a+");
     // Flag per l'eventuale presenza del file richiesto
 	int find_result = 0;
@@ -114,7 +113,7 @@ int findMatch (char* search, char *file, struct stat fileStat, bool verb) {
                     } else {
                         printStat("copy.db",fileStat);
                     }
-                    fopen("copy.db","a+");
+                    fopen("copy.db","a");
                     // Copio il resto del file
                     while(fgets(temp, 512, fout) != NULL) {
                         fputs(temp,copy);
@@ -133,7 +132,7 @@ int findMatch (char* search, char *file, struct stat fileStat, bool verb) {
     fclose(copy);
     return find_result;
 }
-// Metodo per la scrittura del file di output
+
 void writeOut (char *pathname, char *dest, bool link, bool verb) {
     struct stat fileStat;
     if (link) {
@@ -143,6 +142,7 @@ void writeOut (char *pathname, char *dest, bool link, bool verb) {
         // Stats del file a cui fa riferimento il link
         stat(pathname,&fileStat);
     }
+    addEntry(pathname,fileStat);
     int match = findMatch(pathname,dest,fileStat,verb);
     if (match == 0){
         // Se non è stato trovato un match, aggiungo il pathname del nuovo file e scansiono
@@ -165,7 +165,6 @@ void writeOut (char *pathname, char *dest, bool link, bool verb) {
     }
 }
 
-// Metodo che cerca ricorsivamente i file all'interno delle cartelle
 int recWrite (char *pathname, char *dest, bool link, bool verb) {
     DIR *dir;
     struct dirent *ent;
@@ -219,6 +218,7 @@ void history(char *pathname, char *dest) {
 	while(fgets(temp, 512, fout) != NULL) {
         if((strstr(temp, buffer)) != NULL) {
             found = 1;
+            printf("Scansioni eseguite di %s\n",pathname);
             while(fgets(temp, 512, fout) != NULL) {
                 if((strstr(temp, "###")) != NULL) {
                     break;
@@ -231,6 +231,11 @@ void history(char *pathname, char *dest) {
         }
     }
     if (found == 0) {
-        printf("No match found");
+        printf("Nessuna corrispondenza per %s\n",pathname);
     }
+}
+
+void endOfFile(char *pathname) {
+    FILE* f = fopen(pathname,"a");
+    fprintf(f,"###");
 }
